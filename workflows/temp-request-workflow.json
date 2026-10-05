@@ -1,0 +1,70 @@
+{
+  "name": "temporary-request-debug-workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "temporary-request-debug",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-temp",
+      "name": "Webhook temp trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "code": "input_data = _input.first()\njson_payload = input_data.get('json', {})\nfilename = json_payload.get('filename', '')\nstatus = json_payload.get('status', 'success')\nuser_twig = json_payload.get('twig_template', '{{ filename }} | {{ status }}')\nprint('twig override:', user_twig)\nresult = {'filename': filename, 'status': status, 'twig_output': user_twig, 'request_id': json_payload.get('request_id', 'unknown')}\nreturn {'json': result}"
+      },
+      "id": "twig-temp",
+      "name": "Twig expression debug",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "={{ $json }}",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "webhook-response-temp",
+      "name": "Respond to temporary workflow",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [760, 300]
+    }
+  ],
+  "connections": {
+    "webhook-temp": {
+      "main": [
+        [
+          {
+            "node": "twig-temp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "twig-temp": {
+      "main": [
+        [
+          {
+            "node": "webhook-response-temp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "state": "inactive",
+  "active": false
+}

@@ -1,0 +1,95 @@
+{
+  "name": "filename-validator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "filename-validator",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "code": "import json\ninput_data = _input.first()\njson_payload = input_data.get('json', {})\nfilename = json_payload.get('filename', '')\nif filename.startswith('a='):\n    result = {'filename': filename, 'status': 'success', 'message': 'Valid filename'}\nelse:\n    result = {'filename': filename, 'status': 'error', 'message': 'Filename must start with a='}\nreturn {'json': result}"
+      },
+      "id": "2",
+      "name": "Validate filename",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://solace:8080/queue/filename-validation",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ $json }}"
+      },
+      "id": "3",
+      "name": "Send to Solace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [760, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "={{ $json }}",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Respond to webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 300]
+    }
+  ],
+  "connections": {
+    "1": {
+      "main": [
+        [
+          {
+            "node": "2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2": {
+      "main": [
+        [
+          {
+            "node": "3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3": {
+      "main": [
+        [
+          {
+            "node": "4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "state": "inactive",
+  "active": false
+}
