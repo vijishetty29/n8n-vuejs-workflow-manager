@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workflow Request Manager - Cloud n8n</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.5;
+      color: #e5edf5;
+      background: #0b1220;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #08111d 0%, #101b2d 100%);
+    }
+
+    .page-shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    h1, h2, p {
+      margin-top: 0;
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    input, textarea, button {
+      font: inherit;
+    }
+
+    input, textarea {
+      width: 100%;
+      background: #111827;
+      color: white;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+      background: #334155;
+      color: white;
+      transition: opacity 0.2s ease;
+    }
+
+    button:hover {
+      opacity: 0.92;
+    }
+
+    button.primary {
+      background: #2563eb;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 12px;
+      color: #bfdbfe;
+      padding: 12px;
+      background: rgba(37, 99, 235, 0.1);
+      border-radius: 6px;
+    }
+
+    .message.error {
+      background: rgba(239, 68, 68, 0.1);
+      color: #f87171;
+    }
+
+    .message.success {
+      background: rgba(34, 197, 94, 0.1);
+      color: #4ade80;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      padding: 12px 10px;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      font-weight: 600;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .badge {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge.pending {
+      background: rgba(250, 204, 21, 0.2);
+      color: #facc15;
+    }
+
+    .badge.success {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+    }
+
+    .badge.error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    a {
+      color: #93c5fd;
+    }
+
+    .empty {
+      text-align: center;
+      color: #94a3b8;
+      padding: 40px 20px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .form-row input {
+      flex: 1;
+    }
+
+    .form-row button {
+      flex: 0 0 auto;
+    }
+
+    .config-notice {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div>
+        <h1>Workflow Request Manager</h1>
+        <p>Cloud n8n + Vue (Browser Only)</p>
+      </div>
+      <button class="primary" @click="refreshSubmissions">Refresh</button>
+    </header>
+
+    <section class="panel form-panel">
+      <h2>Create request</h2>
+      <div id="config-error" class="config-notice" style="display: none;">
+        ⚠️ Please configure your n8n cloud workflow URL and API key in the settings first.
+      </div>
+      <div class="form-grid">
+        <label>
+          n8n Base URL (e.g., https://vijishetty.app.n8n.cloud)
+          <input v-model="n8nBaseUrl" placeholder="https://vijishetty.app.n8n.cloud" />
+        </label>
+        <label>
+          Workflow ID (e.g., A4AS2nAhGNTFQJ1J)
+          <input v-model="workflowId" placeholder="A4AS2nAhGNTFQJ1J" />
+        </label>
+        <label>
+          API Key (optional)
+          <input v-model="apiKey" type="password" placeholder="Your n8n API key" />
+        </label>
+      </div>
+      <hr style="border: 1px solid rgba(148, 163, 184, 0.2); margin: 20px 0;" />
+      <div class="form-grid">
+        <label>
+          Filename
+          <input v-model="filename" placeholder="a=example-file.txt" />
+        </label>
+      </div>
+      <button class="primary" @click="createRequest" :disabled="isLoading">
+        {{ isLoading ? 'Submitting...' : 'Create request and trigger workflow' }}
+      </button>
+      <div v-if="message" :class="['message', messageType]">{{ message }}</div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent submissions (stored in browser)</h2>
+      <div v-if="submissions.length === 0" class="empty">
+        No submissions yet. Create one above to get started.
+      </div>
+      <table v-else>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Filename</th>
+            <th>Status</th>
+            <th>Workflow Response</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(sub, idx) in submissions" :key="idx">
+            <td>{{ formatTime(sub.timestamp) }}</td>
+            <td>{{ sub.filename }}</td>
+            <td>
+              <span :class="['badge', sub.status]">{{ sub.status }}</span>
+            </td>
+            <td style="font-size: 12px; color: #94a3b8;">
+              <div v-if="sub.response">{{ sub.response }}</div>
+              <div v-else>—</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    const app = {
+      data() {
+        return {
+          n8nBaseUrl: localStorage.getItem('n8nBaseUrl') || '',
+          workflowId: localStorage.getItem('workflowId') || '',
+          apiKey: localStorage.getItem('apiKey') || '',
+          filename: 'a=demo-file.txt',
+          submissions: [],
+          isLoading: false,
+          message: '',
+          messageType: ''
+        };
+      },
+      watch: {
+        n8nBaseUrl(newVal) {
+          localStorage.setItem('n8nBaseUrl', newVal);
+        },
+        workflowId(newVal) {
+          localStorage.setItem('workflowId', newVal);
+        },
+        apiKey(newVal) {
+          localStorage.setItem('apiKey', newVal);
+        }
+      },
+      methods: {
+        async createRequest() {
+          if (!this.n8nBaseUrl || !this.workflowId) {
+            this.message = 'Please configure n8n Base URL and Workflow ID';
+            this.messageType = 'error';
+            document.getElementById('config-error').style.display = 'block';
+            return;
+          }
+
+          if (!this.filename.trim()) {
+            this.message = 'Please enter a filename';
+            this.messageType = 'error';
+            return;
+          }
+
+          this.isLoading = true;
+          this.message = '';
+
+          try {
+            const url = `${this.n8nBaseUrl}/rest/workflows/${this.workflowId}/execute`;
+            const headers = {
+              'Content-Type': 'application/json'
+            };
+
+            if (this.apiKey) {
+              headers['Authorization'] = `Bearer ${this.apiKey}`;
+            }
+
+            const payload = {
+              json: {
+                filename: this.filename
+              }
+            };
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(payload)
+            });
+
+            let responseData = {};
+            try {
+              responseData = await response.json();
+            } catch (e) {
+              responseData = { raw: await response.text() };
+            }
+
+            const submission = {
+              timestamp: new Date(),
+              filename: this.filename,
+              status: response.ok ? 'success' : 'error',
+              response: JSON.stringify(responseData, null, 2)
+            };
+
+            this.submissions.unshift(submission);
+            this.saveSubmissions();
+
+            this.message = response.ok 
+              ? `✓ Request created: ${this.filename}` 
+              : `✗ Error: ${response.status} ${response.statusText}`;
+            this.messageType = response.ok ? 'success' : 'error';
+            this.filename = 'a=demo-file.txt';
+          } catch (err) {
+            this.message = `Network error: ${err.message}`;
+            this.messageType = 'error';
+            console.error(err);
+          } finally {
+            this.isLoading = false;
+          }
+        },
+        refreshSubmissions() {
+          this.loadSubmissions();
+          this.message = 'Refreshed!';
+          this.messageType = 'success';
+          setTimeout(() => { this.message = ''; }, 2000);
+        },
+        saveSubmissions() {
+          localStorage.setItem('submissions', JSON.stringify(this.submissions));
+        },
+        loadSubmissions() {
+          const saved = localStorage.getItem('submissions');
+          if (saved) {
+            this.submissions = JSON.parse(saved);
+          }
+        },
+        formatTime(timestamp) {
+          const date = new Date(timestamp);
+          return date.toLocaleString();
+        }
+      },
+      mounted() {
+        this.loadSubmissions();
+        if (this.n8nBaseUrl && this.workflowId) {
+          document.getElementById('config-error').style.display = 'none';
+        }
+      }
+    };
+
+    // Simple Vue-like reactive binding
+    const state = app.data();
+    const watchers = app.watch;
+    const methods = app.methods;
+
+    // Bind methods to state
+    Object.assign(state, methods);
+
+    // Setup watchers
+    Object.keys(watchers).forEach(key => {
+      Object.defineProperty(state, key, {
+        get() {
+          return this[`_${key}`];
+        },
+        set(newVal) {
+          this[`_${key}`] = newVal;
+          watchers[key].call(this, newVal);
+        }
+      });
+      state[`_${key}`] = localStorage.getItem(key) || '';
+    });
+
+    // Simple template binding
+    function bindTemplate() {
+      const template = document.body.innerHTML;
+      const render = () => {
+        document.querySelectorAll('[v-model]').forEach(el => {
+          const key = el.getAttribute('v-model');
+          el.value = state[key] || '';
+          el.addEventListener('input', (e) => {
+            state[key] = e.target.value;
+          });
+        });
+
+        document.querySelectorAll('[v-if]').forEach(el => {
+          const expr = el.getAttribute('v-if');
+          el.style.display = state[expr] ? '' : 'none';
+        });
+
+        document.querySelectorAll('[v-for]').forEach(el => {
+          const expr = el.getAttribute('v-for');
+          const match = expr.match(/\(([^,]+),\s*([^)]+)\)\s+in\s+(\w+)/);
+          if (match) {
+            const [, item, idx, array] = match;
+            const parent = el.parentElement;
+            const template = el.cloneNode(true);
+            parent.querySelectorAll(`[v-for="${expr}"]`).forEach(e => e.remove());
+            
+            state[array].forEach((val, i) => {
+              const clone = template.cloneNode(true);
+              clone.removeAttribute('v-for');
+              const html = clone.innerHTML
+                .replace(new RegExp(`{{\\s*${item}\\.([^}]+)\\s*}}`, 'g'), () => JSON.stringify(val[$1]))
+                .replace(new RegExp(`{{\\s*formatTime\\(${item}\\.timestamp\\)\\s*}}`, 'g'), () => JSON.stringify(new Date(val.timestamp).toLocaleString()));
+              clone.innerHTML = html;
+              parent.insertBefore(clone, template);
+            });
+          }
+        });
+
+        document.querySelectorAll('[\\@click]').forEach(el => {
+          const action = el.getAttribute('@click');
+          el.removeEventListener('click', el._clickHandler);
+          el._clickHandler = () => {
+            if (typeof state[action] === 'function') {
+              state[action]();
+            }
+          };
+          el.addEventListener('click', el._clickHandler);
+        });
+
+        document.querySelectorAll('[\\@click]').forEach(el => {
+          const action = el.getAttribute('@click');
+          if (typeof state[action] === 'function') {
+            el.onclick = () => state[action]();
+          }
+        });
+
+        document.querySelectorAll('[\\:class]').forEach(el => {
+          const expr = el.getAttribute(':class');
+          const match = expr.match(/\['([^']+)',\s*(\w+)\]/);
+          if (match) {
+            const [, baseClass, key] = match;
+            el.className = baseClass + ' ' + (state[key] || '');
+          }
+        });
+
+        document.querySelectorAll('[\\:disabled]').forEach(el => {
+          const expr = el.getAttribute(':disabled');
+          el.disabled = state[expr];
+        });
+      };
+
+      render();
+      setInterval(render, 100);
+    }
+
+    bindTemplate();
+    app.mounted.call(state);
+  </script>
+</body>
+</html>
